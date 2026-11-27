@@ -504,9 +504,14 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
         g.stats.actionsDone = g.stats.actionsDone || {};
         g.stats.actionsDone[item.id] = Number(g.stats.actionsDone[item.id] || 0) + 1;
 
+        const owner = g.owner || req.sess.user?.username;
         const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
           method: "PUT",
-          body: JSON.stringify({ game: g })
+          body: JSON.stringify({
+            game: { ...g, owner, outbox: g.outbox || { notices: [], fx: [] } },
+            owner,
+            base: latest.data.updatedAt
+          })
         });
         if (!saveOut.ok) {
           job.logs.push(`Save error (${saveOut.status}): ${saveOut.data?.error || "retrying..."}`);
