@@ -1,0 +1,13 @@
+{
+  "name": "lagoslife-club-bot",
+  "version": "1.0.0",
+  "description": "Standalone mobile-first LagosLife Club & Quilox automated spender",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

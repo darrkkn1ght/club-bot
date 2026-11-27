@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: lagoslife-club-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ALLOWED_USERNAMES
+        sync: false
+      - key: ACCESS_KEY
+        sync: false
