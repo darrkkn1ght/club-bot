@@ -46,6 +46,7 @@ const CLUBS = [
     emoji: "🍾",
     hours: { open: 22, close: 5 },
     items: [
+      { id: "shutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
       { id: "bigTable", label: "Book the Big Man VIP Table", emoji: "🎩", cost: 500_000_000, worldEvent: "venue:dorime" },
       { id: "bigRound", label: "Top-Shelf Round for the Whole Club", emoji: "🥂", cost: 100_000_000, worldEvent: "venue:round" },
       { id: "clubTakeover", label: "Take Over Quilox for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
@@ -107,6 +108,7 @@ const CLUBS = [
     emoji: "🔥",
     hours: { open: 22, close: 5 },
     items: [
+      { id: "phShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
       { id: "phClubTakeover", label: "Take Over Playhouse for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
       { id: "phClubParade", label: "Ace of Spades Parade (10 bottles)", emoji: "🍾", cost: 1_000_000, worldEvent: "venue:parade" },
       { id: "phClubVipTable", label: "Book a VIP Table", emoji: "🛋️", cost: 250_000, worldEvent: "venue:dorime" },
@@ -121,6 +123,8 @@ const CLUBS = [
     emoji: "⚡",
     hours: null,
     items: [
+      { id: "abjShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
+      { id: "abjBigTable", label: "Book the Big Man VIP Table", emoji: "🎩", cost: 500_000_000, worldEvent: "venue:dorime" },
       { id: "abjClubTakeover", label: "Take Over Hustle & Bustle for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
       { id: "abjGoldBottle", label: "Order the Gold Bottle (Dorime!)", emoji: "✨", cost: 50_000, worldEvent: "venue:dorime" }
     ]
