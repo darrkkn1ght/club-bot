@@ -3,103 +3,165 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quilox & Club Spender Bot</title>
+  <title>Club & Quilox Bot — Automated Venue Spender</title>
   <style>
     :root {
-      --bg: #0b0b12;
-      --card: #151522;
-      --card-2: #1d1d2e;
-      --border: rgba(255, 255, 255, 0.1);
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --gold: #f59e0b;
-      --gold-2: #d97706;
-      --green: #22c55e;
-      --red: #ef4444;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #0f172a;
+      --primary-hover: #1e293b;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --green: #16a34a;
+      --green-soft: #dcfce7;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --amber: #b45309;
+      --amber-soft: #fef3c7;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.04);
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: radial-gradient(circle at top, #1f1438 0%, var(--bg) 55%);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 16px 14px 96px;
+      padding: 18px 14px 96px;
+      -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 540px; margin: 0 auto; }
+    .wrap { max-width: 620px; margin: 0 auto; }
     .header {
       display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px; gap: 10px;
+      margin-bottom: 18px; gap: 12px; flex-wrap: wrap;
     }
-    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
     .brand-icon {
       width: 42px; height: 42px; border-radius: 12px;
-      background: linear-gradient(135deg, var(--gold), var(--gold-2));
-      display: grid; place-items: center; font-size: 20px; color: #111;
+      background: var(--primary); color: #ffffff;
+      display: grid; place-items: center; font-size: 20px;
+      box-shadow: var(--shadow);
     }
-    .brand h1 { margin: 0; font-size: 1.15rem; font-weight: 800; }
-    .brand p { margin: 0; font-size: 0.78rem; color: var(--muted); }
+    .brand h1 { margin: 0; font-size: 1.12rem; font-weight: 700; letter-spacing: -0.01em; }
+    .brand p { margin: 2px 0 0; font-size: 0.78rem; color: var(--muted); font-weight: 500; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .nav-pill {
+      display: inline-flex; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px; gap: 3px;
+    }
+    .nav-btn {
+      border: none; background: transparent; color: var(--muted);
+      padding: 7px 12px; border-radius: 7px; font-size: 0.84rem; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .nav-btn.active { background: var(--primary); color: #ffffff; }
     .card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 18px; padding: 16px; margin-bottom: 14px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 18px; margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      margin: 0 0 12px; font-size: 1rem; font-weight: 700; letter-spacing: -0.01em;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
     .hidden { display: none !important; }
     .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
     .tab {
-      height: 44px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--card-2); color: var(--muted); font-weight: 700; cursor: pointer;
+      height: 42px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 0.9rem; cursor: pointer;
     }
-    .tab.active { background: var(--gold); color: #111; border-color: transparent; }
+    .tab.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
     label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; font-weight: 600; }
     input, select, textarea {
-      width: 100%; min-height: 48px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--card-2); color: var(--text); padding: 12px; font-size: 1rem;
-      margin-bottom: 12px; outline: none;
+      width: 100%; min-height: 46px; border-radius: 10px; border: 1px solid var(--border-strong);
+      background: var(--surface); color: var(--text); padding: 10px 12px; font-size: 0.95rem;
+      margin-bottom: 12px; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
     }
-    input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
     .btn {
-      width: 100%; min-height: 50px; border: none; border-radius: 14px;
-      font-size: 1rem; font-weight: 800; cursor: pointer;
+      width: 100%; min-height: 48px; border: none; border-radius: 11px;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.15s, transform 0.05s;
     }
-    .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: #111; }
-    .btn-sec { background: var(--card-2); color: var(--text); border: 1px solid var(--border); }
-    .btn-danger { background: rgba(239,68,68,0.18); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
-    .btn-sm { min-height: 38px; padding: 0 12px; font-size: 0.85rem; width: auto; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--primary); color: #ffffff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-sec { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: var(--red-soft); color: var(--red); border: 1px solid #fecaca; }
+    .btn-sm { min-height: 36px; padding: 0 12px; font-size: 0.82rem; width: auto; border-radius: 9px; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
     .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .stat-box { background: var(--card-2); border-radius: 12px; padding: 12px; }
-    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
-    .stat-val { font-size: 1.05rem; font-weight: 800; margin-top: 2px; }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .stat-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+    .stat-val { font-size: 1.08rem; font-weight: 700; margin-top: 3px; color: var(--text); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
     .chip {
-      min-height: 40px; padding: 0 14px; border-radius: 999px;
-      border: 1px solid var(--border); background: var(--card-2); color: var(--text);
-      font-weight: 700; font-size: 0.9rem; cursor: pointer;
+      min-height: 38px; padding: 0 14px; border-radius: 999px;
+      border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+      font-weight: 600; font-size: 0.88rem; cursor: pointer;
     }
-    .chip.active { background: var(--gold); color: #111; border-color: transparent; }
-    .item-list { display: grid; gap: 8px; max-height: 280px; overflow-y: auto; margin-bottom: 12px; }
+    .chip.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+    .item-list { display: grid; gap: 8px; max-height: 270px; overflow-y: auto; margin-bottom: 14px; padding-right: 2px; }
     .item-btn {
-      width: 100%; text-align: left; padding: 12px; border-radius: 12px;
-      background: var(--card-2); border: 1.5px solid var(--border); color: var(--text);
+      width: 100%; text-align: left; padding: 11px 13px; border-radius: 11px;
+      background: var(--surface); border: 1.5px solid var(--border); color: var(--text);
       display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .item-btn.active { border-color: var(--gold); background: rgba(245,158,11,0.12); }
+    .item-btn:hover { border-color: var(--border-strong); background: var(--bg); }
+    .item-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+    .item-price { font-weight: 700; color: var(--accent); white-space: nowrap; font-size: 0.92rem; }
     .badge {
-      display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;
+      display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700;
     }
-    .badge-open { background: rgba(34,197,94,0.18); color: #86efac; }
-    .badge-closed { background: rgba(239,68,68,0.18); color: #fca5a5; }
-    .progress { height: 10px; background: var(--card-2); border-radius: 999px; overflow: hidden; margin: 10px 0; }
-    .progress > div { height: 100%; background: linear-gradient(90deg, var(--gold), #22c55e); transition: width 0.25s; }
+    .badge-open { background: var(--green-soft); color: var(--green); }
+    .badge-closed { background: var(--red-soft); color: var(--red); }
+    .badge-info { background: var(--accent-soft); color: var(--accent); }
+    .progress { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 10px 0; }
+    .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--green)); transition: width 0.25s; }
     .logs {
-      background: #09090f; border-radius: 10px; padding: 10px; font-family: monospace;
-      font-size: 0.76rem; color: #cbd5e1; max-height: 140px; overflow-y: auto; line-height: 1.45;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.76rem; color: #334155; max-height: 140px; overflow-y: auto; line-height: 1.5;
+    }
+    .tip-box {
+      background: var(--accent-soft); border: 1px solid #bfdbfe; color: #1e3a8a;
+      border-radius: 10px; padding: 10px 12px; font-size: 0.82rem; line-height: 1.45;
+    }
+    /* Guide styles */
+    .guide-step {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .guide-step:last-child { border-bottom: none; padding-bottom: 0; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+      background: var(--primary); color: #ffffff;
+      display: grid; place-items: center; font-size: 0.82rem; font-weight: 700;
+    }
+    .guide-step h3 { margin: 0 0 4px; font-size: 0.95rem; font-weight: 700; }
+    .guide-step p { margin: 0; font-size: 0.86rem; color: #475569; line-height: 1.5; }
+    .faq-item { margin-bottom: 12px; }
+    .faq-item:last-child { margin-bottom: 0; }
+    .faq-q { font-weight: 700; font-size: 0.88rem; margin-bottom: 3px; color: var(--text); }
+    .faq-a { font-size: 0.84rem; color: #475569; line-height: 1.45; margin: 0; }
+    code {
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: 1px 5px; border-radius: 5px; font-size: 0.8rem; color: var(--text);
     }
     .toast {
       position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-      background: #1e293b; color: #fff; padding: 12px 18px; border-radius: 12px;
-      border: 1px solid var(--border); font-weight: 700; font-size: 0.9rem; z-index: 99;
+      background: var(--primary); color: #ffffff; padding: 11px 18px; border-radius: 10px;
+      font-weight: 600; font-size: 0.88rem; z-index: 99; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
       max-width: 92vw; text-align: center;
     }
   </style>
@@ -111,96 +173,184 @@
         <div class="brand-icon">🍾</div>
         <div>
           <h1>Club & Quilox Bot</h1>
-          <p id="brandSub">Mobile Auto-Spender</p>
+          <p id="brandSub">Automated Venue Spender</p>
         </div>
       </div>
-      <button id="logoutBtn" class="btn btn-sec btn-sm hidden">Sign Out</button>
-    </div>
-
-    <!-- AUTH VIEW -->
-    <div id="authCard" class="card">
-      <div id="accessKeyWrap" class="hidden">
-        <label>License / Access Key</label>
-        <input id="accessKey" type="password" placeholder="Enter your license key" autocomplete="off" />
-      </div>
-
-      <div class="tabs">
-        <button class="tab active" data-auth="creds">Username & Pass</button>
-        <button class="tab" data-auth="cookie">Session Cookie</button>
-      </div>
-
-      <div id="credsTab">
-        <label>LagosLife Username</label>
-        <input id="username" type="text" placeholder="@username" autocomplete="username" autocapitalize="none" />
-        <label>Password</label>
-        <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
-        <div id="twoFaWrap" class="hidden">
-          <label id="twoFaLabel">2FA Code</label>
-          <input id="twoFaCode" type="text" inputmode="numeric" placeholder="6-digit code" />
+      <div class="header-actions">
+        <div class="nav-pill">
+          <button type="button" class="nav-btn active" id="navBotBtn">Bot</button>
+          <button type="button" class="nav-btn" id="navGuideBtn">How to Use</button>
         </div>
-        <button id="loginBtn" class="btn btn-gold">Sign In</button>
-      </div>
-
-      <div id="cookieTab" class="hidden">
-        <label>Paste LagosLife Session Cookie</label>
-        <textarea id="cookieInput" rows="3" placeholder="ll_session=...; ll_pass=..."></textarea>
-        <button id="cookieBtn" class="btn btn-gold">Connect Cookie</button>
+        <button id="logoutBtn" class="btn btn-sec btn-sm hidden">Sign Out</button>
       </div>
     </div>
 
-    <!-- APP VIEW -->
-    <div id="appView" class="hidden">
-      <div class="card">
-        <div class="stat-row">
-          <div class="stat-box">
-            <div class="stat-label">Wallet (<span id="userHandle">@user</span>)</div>
-            <div class="stat-val" id="walletVal">₦0</div>
+    <!-- BOT VIEW -->
+    <div id="botView">
+      <!-- AUTH VIEW -->
+      <div id="authCard" class="card">
+        <div class="card-title">
+          <span>Sign in to LagosLife</span>
+          <span id="licenseBadge" class="badge badge-info hidden">Licensed Edition</span>
+        </div>
+
+        <div id="accessKeyWrap" class="hidden">
+          <label>License / Access Key</label>
+          <input id="accessKey" type="password" placeholder="Enter your license key" autocomplete="off" />
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-auth="creds">Username & Password</button>
+          <button class="tab" data-auth="cookie">Session Cookie</button>
+        </div>
+
+        <div id="credsTab">
+          <label>LagosLife Username</label>
+          <input id="username" type="text" placeholder="@aremocash01" autocomplete="username" autocapitalize="none" />
+          <label>Password</label>
+          <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+          <div id="twoFaWrap" class="hidden">
+            <label id="twoFaLabel">2FA Code</label>
+            <input id="twoFaCode" type="text" inputmode="numeric" placeholder="6-digit code" />
           </div>
-          <div class="stat-box">
-            <div class="stat-label">In-Game Time</div>
-            <div class="stat-val" id="gameTimeVal">--:--</div>
+          <button id="loginBtn" class="btn btn-primary">Sign In</button>
+        </div>
+
+        <div id="cookieTab" class="hidden">
+          <label>Paste LagosLife Session Cookie</label>
+          <textarea id="cookieInput" rows="3" placeholder="ll_session=...; ll_pass=..."></textarea>
+          <button id="cookieBtn" class="btn btn-primary">Connect Cookie</button>
+        </div>
+
+        <div class="tip-box" style="margin-top:14px;">
+          New here? Tap <strong>How to Use</strong> at the top right for a step-by-step walkthrough.
+        </div>
+      </div>
+
+      <!-- APP VIEW -->
+      <div id="appView" class="hidden">
+        <div class="card">
+          <div class="stat-row">
+            <div class="stat-box">
+              <div class="stat-label">Wallet (<span id="userHandle">@user</span>)</div>
+              <div class="stat-val" id="walletVal">₦0</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">In-Game Time</div>
+              <div class="stat-val" id="gameTimeVal">--:--</div>
+            </div>
+          </div>
+          <div class="tip-box">
+            <strong>Live Tip:</strong> Keep <strong>lagoslife.app</strong> open inside the club in another tab to watch live room announcements &amp; chat while this runs.
           </div>
         </div>
-        <p style="margin:0;font-size:0.78rem;color:var(--muted);">
-          Tip: Stay in Quilox on LagosLife in another tab to watch &amp; chat live while this runs.
-        </p>
+
+        <div class="card">
+          <label>1. Choose Club / Venue <span id="clubOpenBadge" class="badge"></span></label>
+          <select id="clubSelect"></select>
+
+          <label>2. Choose What to Buy</label>
+          <div id="itemList" class="item-list"></div>
+
+          <label>3. Quantity</label>
+          <div class="chips" id="qtyChips">
+            <button type="button" class="chip" data-q="5">5x</button>
+            <button type="button" class="chip active" data-q="20">20x</button>
+            <button type="button" class="chip" data-q="50">50x</button>
+            <button type="button" class="chip" data-q="100">100x</button>
+          </div>
+          <input id="qtyInput" type="number" min="1" max="500" value="20" inputmode="numeric" />
+
+          <label>4. Speed</label>
+          <select id="speedSelect">
+            <option value="500">Fast (0.5s per buy)</option>
+            <option value="1000" selected>Normal (1.0s per buy)</option>
+            <option value="2000">Chill (2.0s per buy)</option>
+          </select>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
+            <label style="margin:0;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--text);">
+              <input id="autoWait" type="checkbox" style="width:18px;min-height:18px;margin:0;" checked />
+              Auto-wait if club is closed (10 PM)
+            </label>
+            <div style="font-weight:700;color:var(--accent);font-size:0.95rem;" id="totalPreview">Total: ₦0</div>
+          </div>
+
+          <button id="startBtn" class="btn btn-primary">Start Auto-Spending</button>
+        </div>
+
+        <div id="jobsWrap"></div>
+      </div>
+    </div>
+
+    <!-- GUIDE VIEW -->
+    <div id="guideView" class="hidden">
+      <div class="card">
+        <div class="card-title">
+          <span>How to Use Club &amp; Quilox Bot</span>
+          <span class="badge badge-info">Quick Start</span>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>Sign In to Your LagosLife Account</h3>
+            <p>
+              Use your LagosLife <strong>Username &amp; Password</strong> (supports 2FA email/app codes) or paste your <strong>Session Cookie</strong>.
+              If using Cookie login, open <code>lagoslife.app</code> in Chrome/Edge, press <code>F12</code> → <strong>Network</strong> → click any <code>/api/</code> request → copy the <code>cookie</code> header.
+            </p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>Pick a Club &amp; Item</h3>
+            <p>
+              Choose from 7 supported venues: <strong>Quilox (Club Eko)</strong>, <strong>Ikoyi Golf Club</strong>, <strong>Lagos Boat Cruise</strong>, <strong>Eko Hotel &amp; Suites</strong>, <strong>Playhouse (PH)</strong>, <strong>Hustle &amp; Bustle</strong>, and <strong>Moscow Underground</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>Set Quantity, Speed &amp; Auto-Wait</h3>
+            <p>
+              Tap a preset chip (<code>5x</code>, <code>20x</code>, <code>50x</code>, <code>100x</code>) or type any amount up to <code>500</code>.
+              Keep <strong>Auto-wait if club is closed</strong> checked for Quilox and Playhouse — they are open <strong>10:00 PM – 5:00 AM</strong> in-game time, and the bot will automatically wait and start buying the moment doors open.
+            </p>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <div class="step-num">4</div>
+          <div>
+            <h3>Monitor &amp; Control Live</h3>
+            <p>
+              Tap <strong>Start Auto-Spending</strong>. Every purchase updates your LagosLife save and broadcasts live venue events (like <em>Dorime!</em> or <em>Takeover</em>) to the club room. You can <strong>Pause</strong>, <strong>Resume</strong>, or <strong>Stop</strong> anytime.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div class="card">
-        <label>1. Choose Club / Venue <span id="clubOpenBadge" class="badge"></span></label>
-        <select id="clubSelect"></select>
-
-        <label>2. Choose What to Buy</label>
-        <div id="itemList" class="item-list"></div>
-
-        <label>3. Quantity</label>
-        <div class="chips" id="qtyChips">
-          <button type="button" class="chip" data-q="5">5x</button>
-          <button type="button" class="chip active" data-q="20">20x</button>
-          <button type="button" class="chip" data-q="50">50x</button>
-          <button type="button" class="chip" data-q="100">100x</button>
+        <div class="card-title"><span>Frequently Asked Questions</span></div>
+        <div class="faq-item">
+          <div class="faq-q">Why does it say my account is not authorized?</div>
+          <p class="faq-a">This bot is licensed to a single LagosLife username. Only the licensed account can sign in and run jobs.</p>
         </div>
-        <input id="qtyInput" type="number" min="1" max="500" value="20" inputmode="numeric" />
-
-        <label>4. Speed</label>
-        <select id="speedSelect">
-          <option value="500">⚡ Fast (0.5s / buy)</option>
-          <option value="1000" selected>🚀 Normal (1.0s / buy)</option>
-          <option value="2000">🥂 Chill (2.0s / buy)</option>
-        </select>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">
-          <label style="margin:0;display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input id="autoWait" type="checkbox" style="width:20px;min-height:20px;margin:0;" checked />
-            Auto-wait if club is closed (10 PM)
-          </label>
-          <div style="font-weight:800;color:var(--gold);" id="totalPreview">Total: ₦0</div>
+        <div class="faq-item">
+          <div class="faq-q">Can I close the browser tab while it runs?</div>
+          <p class="faq-a">Yes, the spender loop runs on the server. Just come back to check progress, pause, or stop.</p>
         </div>
-
-        <button id="startBtn" class="btn btn-gold">🚀 Start Auto-Spending</button>
+        <div class="faq-item">
+          <div class="faq-q">What happens if my cash runs out?</div>
+          <p class="faq-a">The bot checks your balance before every purchase and stops safely once you don't have enough cash for the next item.</p>
+        </div>
       </div>
 
-      <div id="jobsWrap"></div>
+      <button type="button" class="btn btn-primary" id="backToBotBtn">Back to Bot</button>
     </div>
   </div>
 
@@ -235,6 +385,17 @@
       clearTimeout(toast._t);
       toast._t = setTimeout(() => el.classList.add("hidden"), 3200);
     }
+
+    function setView(view) {
+      const isGuide = view === "guide";
+      $("botView").classList.toggle("hidden", isGuide);
+      $("guideView").classList.toggle("hidden", !isGuide);
+      $("navBotBtn").classList.toggle("active", !isGuide);
+      $("navGuideBtn").classList.toggle("active", isGuide);
+    }
+    $("navBotBtn").addEventListener("click", () => setView("bot"));
+    $("navGuideBtn").addEventListener("click", () => setView("guide"));
+    $("backToBotBtn").addEventListener("click", () => setView("bot"));
 
     function getToken() {
       try { return localStorage.getItem(TOKEN_KEY) || ""; } catch { return ""; }
@@ -383,7 +544,7 @@
           (i) => `
           <button type="button" class="item-btn ${i.id === selectedItemId ? "active" : ""}" data-id="${i.id}">
             <span>${i.emoji} <strong>${i.label}</strong></span>
-            <span style="font-weight:800;color:var(--gold);white-space:nowrap;">${fmtNaira(i.cost)}</span>
+            <span class="item-price">${fmtNaira(i.cost)}</span>
           </button>`
         )
         .join("");
@@ -467,11 +628,11 @@
             return `
             <div class="card">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                <strong>${j.clubName} · ${j.itemLabel}</strong>
-                <span class="badge ${j.status === "COMPLETED" ? "badge-open" : "badge-closed"}">${j.status} (${j.bought}/${j.quantity})</span>
+                <strong>${escHtml(j.clubName)} · ${escHtml(j.itemLabel)}</strong>
+                <span class="badge ${j.status === "COMPLETED" ? "badge-open" : "badge-closed"}">${escHtml(j.status)} (${j.bought}/${j.quantity})</span>
               </div>
               <div class="progress"><div style="width:${pct}%"></div></div>
-              <div style="font-size:0.85rem;color:var(--gold);font-weight:700;margin-bottom:8px;">Spent: ${fmtNaira(j.spent)}</div>
+              <div style="font-size:0.85rem;color:var(--accent);font-weight:700;margin-bottom:8px;">Spent: ${fmtNaira(j.spent)}</div>
               ${
                 active
                   ? `<div style="display:flex;gap:8px;margin-bottom:8px;">
@@ -493,7 +654,10 @@
         fetch("/api/auth/config").then((r) => r.json()).catch(() => ({}))
       ]);
       if (cfg.requireAccessKey) $("accessKeyWrap").classList.remove("hidden");
-      if (cfg.licensedOnly) $("brandSub").textContent = "Licensed Single-User Edition 🔒";
+      if (cfg.licensedOnly) {
+        $("brandSub").textContent = "Licensed Single-User Edition";
+        $("licenseBadge").classList.remove("hidden");
+      }
       clubs = c.clubs || [];
       renderClubs();
       if (getToken()) showApp();
