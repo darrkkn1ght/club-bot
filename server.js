@@ -528,15 +528,27 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
         }
         const venueKind = item.venueKind || (item.worldEvent?.startsWith("venue:") ? item.worldEvent.slice(6) : "");
         if (venueKind && ["shutdown", "takeover", "dorime", "parade", "round"].includes(venueKind)) {
-          const venueBody = item.isBigMoment
-            ? { kind: venueKind, id: crypto.randomBytes(16).toString("hex") }
-            : { kind: venueKind };
-          const venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
+          const venueId = item.isBigMoment ? crypto.randomBytes(16).toString("hex") : undefined;
+          const venueBody = venueId ? { kind: venueKind, id: venueId } : { kind: venueKind };
+          let venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
             method: "POST",
             body: JSON.stringify(venueBody)
           }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
-          if (!venueRes.ok && venueRes.status !== 429) {
-            job.logs.push(`Venue notice (${venueRes.status}): ${venueRes.data?.error || "failed"}`);
+
+          if (venueRes.status === 429 && !worker.cancelled) {
+            const waitMs = Math.min(30000, Math.max(3000, Number(venueRes.data?.retryIn) || 5000));
+            job.logs.push(`Venue cooldown (429): waiting ${Math.ceil(waitMs / 1000)}s...`);
+            await sleep(waitMs);
+            if (!worker.cancelled) {
+              venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
+                method: "POST",
+                body: JSON.stringify(venueBody)
+              }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
+            }
+          }
+
+          if (!venueRes.ok) {
+            job.logs.push(`Venue (${venueRes.status}): ${venueRes.data?.error || "failed"}`);
           }
         }
 
