@@ -35,6 +35,13 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+async function sleepCancelable(ms, worker) {
+  const end = Date.now() + ms;
+  while (Date.now() < end && !worker.cancelled) {
+    await sleep(Math.min(500, end - Date.now()));
+  }
+}
+
 // =========================================================================
 // VERIFIED CLUBS & ITEM CATALOG
 // =========================================================================
@@ -497,59 +504,84 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           break;
         }
 
-        // Apply purchase to save state cleanly
-        g.location = club.id;
-        g.money = Number(g.money || 0) - item.cost;
-        g.stats = g.stats || {};
-        g.stats.actionsDone = g.stats.actionsDone || {};
-        g.stats.actionsDone[item.id] = Number(g.stats.actionsDone[item.id] || 0) + 1;
+        // Record venue spend on leaderboard FIRST so 429 cooldowns never drop buys
+        const venueKind = item.venueKind || (item.worldEvent?.startsWith("venue:") ? item.worldEvent.slice(6) : "");
+        if (venueKind && ["shutdown", "takeover", "dorime", "parade", "round"].includes(venueKind)) {
+          const venueId = item.isBigMoment ? crypto.randomBytes(16).toString("hex") : undefined;
+          const venueBody = venueId ? { kind: venueKind, id: venueId } : { kind: venueKind };
+          const venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
+            method: "POST",
+            body: JSON.stringify(venueBody)
+          }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
 
-        const owner = g.owner || req.sess.user?.username;
-        const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
-          method: "PUT",
-          body: JSON.stringify({
-            game: { ...g, owner, outbox: g.outbox || { notices: [], fx: [] } },
-            owner,
-            base: latest.data.updatedAt
-          })
-        });
-        if (!saveOut.ok) {
+          if (venueRes.status === 429) {
+            const waitMs = Math.min(65000, Math.max(4000, Number(venueRes.data?.retryIn) || 6000));
+            const msg = `Venue cooldown (429): waiting ${Math.ceil(waitMs / 1000)}s before retrying...`;
+            if (job.logs[job.logs.length - 1] !== msg) job.logs.push(msg);
+            if (job.logs.length > 40) job.logs = job.logs.slice(-40);
+            await sleepCancelable(waitMs, worker);
+            continue;
+          }
+
+          if (!venueRes.ok) {
+            job.logs.push(`Venue (${venueRes.status}): ${venueRes.data?.error || "failed"}`);
+            if (venueRes.status === 401) {
+              job.status = "FAILED";
+              break;
+            }
+            if (item.isBigMoment) {
+              await sleepCancelable(3000, worker);
+              continue;
+            }
+          }
+        }
+
+        // Apply purchase to save state (retry on 409 conflict without re-charging venue)
+        let saved = false;
+        let saveData = latest.data;
+        for (let attempt = 0; attempt < 4 && !worker.cancelled; attempt++) {
+          const curGame = saveData.game;
+          curGame.location = club.id;
+          curGame.money = Number(curGame.money || 0) - item.cost;
+          curGame.stats = curGame.stats || {};
+          curGame.stats.actionsDone = curGame.stats.actionsDone || {};
+          curGame.stats.actionsDone[item.id] = Number(curGame.stats.actionsDone[item.id] || 0) + 1;
+
+          const owner = curGame.owner || req.sess.user?.username;
+          const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
+            method: "PUT",
+            body: JSON.stringify({
+              game: { ...curGame, owner, outbox: curGame.outbox || { notices: [], fx: [] } },
+              owner,
+              base: saveData.updatedAt
+            })
+          });
+          if (saveOut.ok) {
+            saved = true;
+            break;
+          }
+          if (saveOut.status === 409) {
+            await sleepCancelable(500, worker);
+            const refreshed = await fetchLagosLife(req.sess.cookie, "/api/save");
+            if (refreshed.ok && refreshed.data?.game) {
+              saveData = refreshed.data;
+              continue;
+            }
+          }
           job.logs.push(`Save error (${saveOut.status}): ${saveOut.data?.error || "retrying..."}`);
-          await sleep(2000);
+          break;
+        }
+        if (!saved) {
+          await sleepCancelable(2000, worker);
           continue;
         }
 
-        // Broadcast live room event & record venue spend on leaderboard
+        // Broadcast live room event if applicable
         if (item.worldEvent) {
           await fetchLagosLife(req.sess.cookie, "/api/world", {
             method: "POST",
             body: JSON.stringify({ location: club.id, event: item.worldEvent })
           }).catch(() => {});
-        }
-        const venueKind = item.venueKind || (item.worldEvent?.startsWith("venue:") ? item.worldEvent.slice(6) : "");
-        if (venueKind && ["shutdown", "takeover", "dorime", "parade", "round"].includes(venueKind)) {
-          const venueId = item.isBigMoment ? crypto.randomBytes(16).toString("hex") : undefined;
-          const venueBody = venueId ? { kind: venueKind, id: venueId } : { kind: venueKind };
-          let venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
-            method: "POST",
-            body: JSON.stringify(venueBody)
-          }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
-
-          if (venueRes.status === 429 && !worker.cancelled) {
-            const waitMs = Math.min(30000, Math.max(3000, Number(venueRes.data?.retryIn) || 5000));
-            job.logs.push(`Venue cooldown (429): waiting ${Math.ceil(waitMs / 1000)}s...`);
-            await sleep(waitMs);
-            if (!worker.cancelled) {
-              venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
-                method: "POST",
-                body: JSON.stringify(venueBody)
-              }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
-            }
-          }
-
-          if (!venueRes.ok) {
-            job.logs.push(`Venue (${venueRes.status}): ${venueRes.data?.error || "failed"}`);
-          }
         }
 
         job.bought += 1;
