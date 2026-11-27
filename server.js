@@ -46,7 +46,7 @@ const CLUBS = [
     emoji: "🍾",
     hours: { open: 22, close: 5 },
     items: [
-      { id: "shutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
+      { id: "clubShutdown", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover", venueKind: "shutdown", isBigMoment: true },
       { id: "bigTable", label: "Book the Big Man VIP Table", emoji: "🎩", cost: 500_000_000, worldEvent: "venue:dorime" },
       { id: "bigRound", label: "Top-Shelf Round for the Whole Club", emoji: "🥂", cost: 100_000_000, worldEvent: "venue:round" },
       { id: "clubTakeover", label: "Take Over Quilox for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
@@ -108,7 +108,7 @@ const CLUBS = [
     emoji: "🔥",
     hours: { open: 22, close: 5 },
     items: [
-      { id: "phShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
+      { id: "phShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover", venueKind: "shutdown", isBigMoment: true },
       { id: "phClubTakeover", label: "Take Over Playhouse for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
       { id: "phClubParade", label: "Ace of Spades Parade (10 bottles)", emoji: "🍾", cost: 1_000_000, worldEvent: "venue:parade" },
       { id: "phClubVipTable", label: "Book a VIP Table", emoji: "🛋️", cost: 250_000, worldEvent: "venue:dorime" },
@@ -123,7 +123,7 @@ const CLUBS = [
     emoji: "⚡",
     hours: null,
     items: [
-      { id: "abjShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover" },
+      { id: "abjShutDownClub", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover", venueKind: "shutdown", isBigMoment: true },
       { id: "abjBigTable", label: "Book the Big Man VIP Table", emoji: "🎩", cost: 500_000_000, worldEvent: "venue:dorime" },
       { id: "abjClubTakeover", label: "Take Over Hustle & Bustle for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
       { id: "abjGoldBottle", label: "Order the Gold Bottle (Dorime!)", emoji: "✨", cost: 50_000, worldEvent: "venue:dorime" }
@@ -519,12 +519,25 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           continue;
         }
 
-        // Broadcast live room event if applicable
+        // Broadcast live room event & record venue spend on leaderboard
         if (item.worldEvent) {
           await fetchLagosLife(req.sess.cookie, "/api/world", {
             method: "POST",
             body: JSON.stringify({ location: club.id, event: item.worldEvent })
           }).catch(() => {});
+        }
+        const venueKind = item.venueKind || (item.worldEvent?.startsWith("venue:") ? item.worldEvent.slice(6) : "");
+        if (venueKind && ["shutdown", "takeover", "dorime", "parade", "round"].includes(venueKind)) {
+          const venueBody = item.isBigMoment
+            ? { kind: venueKind, id: crypto.randomBytes(16).toString("hex") }
+            : { kind: venueKind };
+          const venueRes = await fetchLagosLife(req.sess.cookie, "/api/venue", {
+            method: "POST",
+            body: JSON.stringify(venueBody)
+          }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
+          if (!venueRes.ok && venueRes.status !== 429) {
+            job.logs.push(`Venue notice (${venueRes.status}): ${venueRes.data?.error || "failed"}`);
+          }
         }
 
         job.bought += 1;
