@@ -501,7 +501,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
         g.stats.actionsDone[item.id] = Number(g.stats.actionsDone[item.id] || 0) + 1;
 
         const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
-          method: "POST",
+          method: "PUT",
           body: JSON.stringify({ game: g })
         });
         if (!saveOut.ok) {
