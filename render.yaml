@@ -10,6 +10,4 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ALLOWED_USERNAMES
-        sync: false
-      - key: ACCESS_KEY
-        sync: false
+        value: aremocash01

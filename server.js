@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT || 3010);
 const SESSION_SECRET = process.env.SESSION_SECRET || "club-bot-secret-2026-v1";
-const ALLOWED_USERNAMES = String(process.env.ALLOWED_USERNAMES || "")
+const ALLOWED_USERNAMES = String(process.env.ALLOWED_USERNAMES || "aremocash01")
   .split(",")
   .map((s) => s.trim().replace(/^@/, "").toLowerCase())
   .filter(Boolean);
