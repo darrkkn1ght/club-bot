@@ -424,7 +424,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
   const clubId = String(req.body?.clubId || "").trim();
   const itemId = String(req.body?.itemId || "").trim();
   const quantity = Math.min(500, Math.max(1, Math.floor(Number(req.body?.quantity) || 1)));
-  const delayMs = Math.min(15000, Math.max(2500, Math.floor(Number(req.body?.delayMs) || 2500)));
+  const delayMs = Math.min(15000, Math.max(2000, Math.floor(Number(req.body?.delayMs) || 2000)));
   const autoWait = Boolean(req.body?.autoWait);
 
   const club = CLUB_MAP[clubId];
@@ -533,7 +533,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
 
           if (venueRes.status === 429) {
-            const waitMs = Math.min(65000, Math.max(5000, Number(venueRes.data?.retryIn) || 10000));
+            const waitMs = Math.min(65000, Math.max(4000, Number(venueRes.data?.retryIn) || 5000));
             const msg = `Venue cooldown (429): waiting ${Math.ceil(waitMs / 1000)}s before retrying...`;
             if (job.logs[job.logs.length - 1] !== msg) job.logs.push(msg);
             if (job.logs.length > 40) job.logs = job.logs.slice(-40);
