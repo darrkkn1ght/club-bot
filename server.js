@@ -9,7 +9,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT || 3010);
 const SESSION_SECRET = process.env.SESSION_SECRET || "club-bot-secret-2026-v1";
-const ALLOWED_USERNAMES = String(process.env.ALLOWED_USERNAMES || "aremocash01,milespete")
+const ALLOWED_USERNAMES = String(process.env.ALLOWED_USERNAMES || "aremocash01,milespete,preshymulla")
+  .split(",")
+  .map((s) => s.trim().replace(/^@/, "").toLowerCase())
+  .filter(Boolean);
+const GHANA_USERNAMES = String(process.env.GHANA_USERNAMES || "preshymulla")
   .split(",")
   .map((s) => s.trim().replace(/^@/, "").toLowerCase())
   .filter(Boolean);
@@ -21,6 +25,12 @@ function isUserAllowed(user) {
   if (!ALLOWED_USERNAMES.length) return true;
   const uname = String(user?.username || "").trim().replace(/^@/, "").toLowerCase();
   return Boolean(uname && ALLOWED_USERNAMES.includes(uname));
+}
+
+function isGhanaAllowed(user) {
+  if (!GHANA_USERNAMES.length) return false;
+  const uname = String(user?.username || "").trim().replace(/^@/, "").toLowerCase();
+  return Boolean(uname && GHANA_USERNAMES.includes(uname));
 }
 
 function isAccessKeyValid(provided) {
@@ -144,6 +154,23 @@ const CLUBS = [
     hours: null,
     items: [
       { id: "abjMoscowIce", label: "Order the Ice Tower (Dorime!)", emoji: "🧊", cost: 150_000, worldEvent: "venue:dorime" }
+    ]
+  },
+  {
+    id: "accClub",
+    city: "Accra, Ghana",
+    name: "Skyline 233",
+    emoji: "🪩",
+    requiresGhana: true,
+    hours: null,
+    items: [
+      { id: "clubShutdown", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover", venueKind: "shutdown", isBigMoment: true },
+      { id: "accBigTable", label: "Book the Big Man VIP Table", emoji: "🎩", cost: 500_000_000, worldEvent: "venue:dorime" },
+      { id: "accClubTakeover", label: "Take Over Skyline 233 for the Night", emoji: "👑", cost: 10_000_000, worldEvent: "venue:takeover" },
+      { id: "accClubParade", label: "Ace of Spades Parade (10 bottles)", emoji: "🍾", cost: 1_000_000, worldEvent: "venue:parade" },
+      { id: "accVipTable", label: "Book a VIP Table", emoji: "🛋️", cost: 250_000, worldEvent: "venue:dorime" },
+      { id: "accGoldBottle", label: "Order the Gold Bottle (Dorime!)", emoji: "✨", cost: 50_000, worldEvent: "venue:dorime" },
+      { id: "accBottleService", label: "Bottle Service (VIP)", emoji: "🍾", cost: 9_600, worldEvent: "venue:dorime" }
     ]
   }
 ];
@@ -413,6 +440,7 @@ app.get("/api/status", requireAuth, async (req, res) => {
       location: game.location || "",
       gameTime,
       clubOpenMap,
+      ghanaUnlocked: isGhanaAllowed(req.sess.user),
       jobs: req.sess.jobs.slice(0, 10)
     });
   } catch (err) {
@@ -429,6 +457,9 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
 
   const club = CLUB_MAP[clubId];
   if (!club) return res.status(400).json({ error: "Invalid club selected." });
+  if (club.requiresGhana && !isGhanaAllowed(req.sess.user)) {
+    return res.status(403).json({ error: "Ghana Clubs require the +₦5,000 upgrade. Contact admin to unlock." });
+  }
   const item = club.items.find((i) => i.id === itemId);
   if (!item) return res.status(400).json({ error: "Invalid item selected for this club." });
 
