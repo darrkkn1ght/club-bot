@@ -13,10 +13,6 @@ const ALLOWED_USERNAMES = String(process.env.ALLOWED_USERNAMES || "aremocash01,m
   .split(",")
   .map((s) => s.trim().replace(/^@/, "").toLowerCase())
   .filter(Boolean);
-const GHANA_USERNAMES = String(process.env.GHANA_USERNAMES || "preshymulla")
-  .split(",")
-  .map((s) => s.trim().replace(/^@/, "").toLowerCase())
-  .filter(Boolean);
 const ACCESS_KEY = String(process.env.ACCESS_KEY || "").trim();
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36";
@@ -25,12 +21,6 @@ function isUserAllowed(user) {
   if (!ALLOWED_USERNAMES.length) return true;
   const uname = String(user?.username || "").trim().replace(/^@/, "").toLowerCase();
   return Boolean(uname && ALLOWED_USERNAMES.includes(uname));
-}
-
-function isGhanaAllowed(user) {
-  if (!GHANA_USERNAMES.length) return false;
-  const uname = String(user?.username || "").trim().replace(/^@/, "").toLowerCase();
-  return Boolean(uname && GHANA_USERNAMES.includes(uname));
 }
 
 function isAccessKeyValid(provided) {
@@ -161,7 +151,6 @@ const CLUBS = [
     city: "Accra, Ghana",
     name: "Skyline 233",
     emoji: "🪩",
-    requiresGhana: true,
     hours: null,
     items: [
       { id: "clubShutdown", label: "Shut Down the Club", emoji: "🔒", cost: 1_000_000_000, worldEvent: "venue:takeover", venueKind: "shutdown", isBigMoment: true },
@@ -440,7 +429,6 @@ app.get("/api/status", requireAuth, async (req, res) => {
       location: game.location || "",
       gameTime,
       clubOpenMap,
-      ghanaUnlocked: isGhanaAllowed(req.sess.user),
       jobs: req.sess.jobs.slice(0, 10)
     });
   } catch (err) {
@@ -457,9 +445,6 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
 
   const club = CLUB_MAP[clubId];
   if (!club) return res.status(400).json({ error: "Invalid club selected." });
-  if (club.requiresGhana && !isGhanaAllowed(req.sess.user)) {
-    return res.status(403).json({ error: "Ghana Clubs require the +₦5,000 upgrade. Contact admin to unlock." });
-  }
   const item = club.items.find((i) => i.id === itemId);
   if (!item) return res.status(400).json({ error: "Invalid item selected for this club." });
 

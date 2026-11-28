@@ -11,5 +11,3 @@ services:
         generateValue: true
       - key: ALLOWED_USERNAMES
         value: aremocash01,milespete,preshymulla
-      - key: GHANA_USERNAMES
-        value: preshymulla
