@@ -617,8 +617,9 @@
       try {
         const d = await api("/api/status");
         $("userHandle").textContent = "@" + (d.user?.username || "player");
-        $("walletVal").textContent = fmtNaira(d.balance);
-        $("gameTimeVal").textContent = d.gameTime || "--:--";
+        if (d.balance !== null && d.balance !== undefined) $("walletVal").textContent = fmtNaira(d.balance);
+        if (d.gameTime && d.gameTime !== "--:--") $("gameTimeVal").textContent = d.gameTime;
+        if (d.sessionExpired) toast("LagosLife session expired — please Sign Out and re-login.");
         clubOpenMap = d.clubOpenMap || {};
         updateOpenBadge();
 

@@ -1,5 +1,6 @@
 import express from "express";
 import crypto from "crypto";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -171,6 +172,39 @@ const CLUB_MAP = Object.fromEntries(CLUBS.map((c) => [c.id, c]));
 // =========================================================================
 const sessions = new Map(); // token -> { cookie, user, jobs: [] }
 const activeWorkers = new Map(); // jobId -> { paused, cancelled }
+const JOBS_FILE = path.join(process.env.TMPDIR || process.env.TEMP || "/tmp", "club-bot-jobs.json");
+const jobsByUser = new Map(); // username -> job[]
+
+function loadJobsFromDisk() {
+  try {
+    if (!fs.existsSync(JOBS_FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(JOBS_FILE, "utf8"));
+    for (const [uname, list] of Object.entries(raw || {})) {
+      const cleaned = (Array.isArray(list) ? list : []).slice(0, 15).map((j) =>
+        ["RUNNING", "WAITING_OPEN", "PAUSED"].includes(j.status)
+          ? { ...j, status: "INTERRUPTED", logs: [...(j.logs || []), "Stopped: server restarted."].slice(-40) }
+          : j
+      );
+      jobsByUser.set(uname, cleaned);
+    }
+  } catch {}
+}
+
+function saveJobsToDisk() {
+  try {
+    const out = {};
+    for (const [uname, list] of jobsByUser.entries()) out[uname] = list.slice(0, 15);
+    fs.writeFileSync(JOBS_FILE, JSON.stringify(out), "utf8");
+  } catch {}
+}
+
+function getUserJobs(user) {
+  const uname = String(user?.username || "player").trim().toLowerCase();
+  if (!jobsByUser.has(uname)) jobsByUser.set(uname, []);
+  return jobsByUser.get(uname);
+}
+
+loadJobsFromDisk();
 
 function signToken(payloadObj) {
   const payload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
@@ -200,10 +234,14 @@ function verifyToken(token) {
 function getSession(req) {
   const token = String(req.headers["x-bot-token"] || "").trim();
   if (!token) return null;
-  if (sessions.has(token)) return { token, ...sessions.get(token) };
+  if (sessions.has(token)) {
+    const s = sessions.get(token);
+    s.jobs = getUserJobs(s.user);
+    return { token, ...s };
+  }
   const decoded = verifyToken(token);
   if (!decoded) return null;
-  const sess = { cookie: decoded.cookie, user: decoded.user, jobs: [] };
+  const sess = { cookie: decoded.cookie, user: decoded.user, jobs: getUserJobs(decoded.user) };
   sessions.set(token, sess);
   return { token, ...sess };
 }
@@ -415,20 +453,18 @@ app.get("/api/clubs", (req, res) => {
 app.get("/api/status", requireAuth, async (req, res) => {
   try {
     const saveRes = await fetchLagosLife(req.sess.cookie, "/api/save");
-    if (saveRes.status === 401) {
-      return res.status(401).json({ error: "LagosLife session expired. Please sign in again." });
-    }
     const game = saveRes.data?.game || {};
-    const gameTime = formatGameTime(game);
+    const gameTime = saveRes.ok ? formatGameTime(game) : "--:--";
     const clubOpenMap = {};
-    for (const c of CLUBS) clubOpenMap[c.id] = isClubOpen(c, game);
+    for (const c of CLUBS) clubOpenMap[c.id] = saveRes.ok ? isClubOpen(c, game) : true;
 
     res.json({
       user: req.sess.user,
-      balance: Number(game.money || 0),
+      balance: saveRes.ok ? Number(game.money || 0) : null,
       location: game.location || "",
       gameTime,
       clubOpenMap,
+      sessionExpired: saveRes.status === 401,
       jobs: req.sess.jobs.slice(0, 10)
     });
   } catch (err) {
@@ -448,13 +484,23 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
   const item = club.items.find((i) => i.id === itemId);
   if (!item) return res.status(400).json({ error: "Invalid item selected for this club." });
 
+  const existingActive = req.sess.jobs.find((j) =>
+    ["RUNNING", "WAITING_OPEN", "PAUSED"].includes(j.status) && activeWorkers.has(j.id)
+  );
+  if (existingActive) {
+    return res.status(409).json({
+      error: `You already have an active job (${existingActive.bought}/${existingActive.quantity} ${existingActive.itemLabel}). Stop it before starting a new one.`
+    });
+  }
+
   const saveRes = await fetchLagosLife(req.sess.cookie, "/api/save");
   if (!saveRes.ok || !saveRes.data?.game) {
     return res.status(401).json({ error: "Could not load your LagosLife save. Re-login and try again." });
   }
   const game = saveRes.data.game;
+  const startBalance = Number(game.money || 0);
   const totalCost = item.cost * quantity;
-  if (Number(game.money || 0) < item.cost) {
+  if (startBalance < item.cost) {
     return res.status(400).json({ error: `Not enough cash for even 1x ${item.label}.` });
   }
 
@@ -487,6 +533,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
 
   req.sess.jobs.unshift(job);
   if (req.sess.jobs.length > 15) req.sess.jobs.length = 15;
+  saveJobsToDisk();
   const worker = { paused: false, cancelled: false };
   activeWorkers.set(jobId, worker);
 
@@ -515,8 +562,14 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
         }
 
         job.status = "RUNNING";
-        if (Number(g.money || 0) < item.cost) {
-          job.logs.push(`Insufficient funds remaining (₦${Number(g.money || 0).toLocaleString("en-NG")}).`);
+        const curBalance = Number(g.money || 0);
+        if (curBalance < item.cost) {
+          job.logs.push(`Insufficient funds remaining (₦${curBalance.toLocaleString("en-NG")}).`);
+          break;
+        }
+        // Hard safety cap: never spend more than totalCost from starting balance
+        if (startBalance - curBalance >= totalCost) {
+          job.logs.push(`Safety cap reached (₦${(startBalance - curBalance).toLocaleString("en-NG")} spent). Stopping.`);
           break;
         }
 
@@ -626,6 +679,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           job.logs.push(`#${job.bought}/${quantity} ${item.emoji} ${item.label} (₦${job.spent.toLocaleString("en-NG")} spent)`);
         }
         if (job.logs.length > 40) job.logs = job.logs.slice(-40);
+        saveJobsToDisk();
 
         await sleepCancelable(delayMs, worker);
       }
@@ -641,6 +695,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
       job.status = "FAILED";
       job.logs.push(`Error: ${err.message}`);
     } finally {
+      saveJobsToDisk();
       activeWorkers.delete(jobId);
     }
   })();
