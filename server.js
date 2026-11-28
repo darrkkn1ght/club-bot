@@ -424,7 +424,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
   const clubId = String(req.body?.clubId || "").trim();
   const itemId = String(req.body?.itemId || "").trim();
   const quantity = Math.min(500, Math.max(1, Math.floor(Number(req.body?.quantity) || 1)));
-  const delayMs = Math.min(10000, Math.max(400, Math.floor(Number(req.body?.delayMs) || 1000)));
+  const delayMs = Math.min(15000, Math.max(2500, Math.floor(Number(req.body?.delayMs) || 2500)));
   const autoWait = Boolean(req.body?.autoWait);
 
   const club = CLUB_MAP[clubId];
@@ -504,7 +504,25 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           break;
         }
 
-        // Record venue spend on leaderboard FIRST so 429 cooldowns never drop buys
+        // Ensure player is in the target club before calling /api/venue (no money deducted here)
+        if (g.location !== club.id) {
+          const moveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
+            method: "PUT",
+            body: JSON.stringify({
+              game: { ...g, location: club.id, owner: g.owner || req.sess.user?.username, outbox: { notices: [], fx: [] } },
+              owner: g.owner || req.sess.user?.username,
+              base: latest.data.updatedAt
+            })
+          });
+          if (!moveOut.ok) {
+            await sleepCancelable(2000, worker);
+            continue;
+          }
+          await sleepCancelable(2000, worker);
+        }
+
+        // For bigMoment items (e.g. Shut Down the Club), POST /api/venue handles deduction + leaderboard + receipt on the server.
+        // Never also subtract item.cost in PUT /api/save or it will double-charge!
         const venueKind = item.venueKind || (item.worldEvent?.startsWith("venue:") ? item.worldEvent.slice(6) : "");
         if (venueKind && ["shutdown", "takeover", "dorime", "parade", "round"].includes(venueKind)) {
           const venueId = item.isBigMoment ? crypto.randomBytes(16).toString("hex") : undefined;
@@ -515,7 +533,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           }).catch((e) => ({ ok: false, status: 0, data: { error: e.message } }));
 
           if (venueRes.status === 429) {
-            const waitMs = Math.min(65000, Math.max(4000, Number(venueRes.data?.retryIn) || 6000));
+            const waitMs = Math.min(65000, Math.max(5000, Number(venueRes.data?.retryIn) || 10000));
             const msg = `Venue cooldown (429): waiting ${Math.ceil(waitMs / 1000)}s before retrying...`;
             if (job.logs[job.logs.length - 1] !== msg) job.logs.push(msg);
             if (job.logs.length > 40) job.logs = job.logs.slice(-40);
@@ -536,44 +554,46 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
           }
         }
 
-        // Apply purchase to save state (retry on 409 conflict without re-charging venue)
-        let saved = false;
-        let saveData = latest.data;
-        for (let attempt = 0; attempt < 4 && !worker.cancelled; attempt++) {
-          const curGame = saveData.game;
-          curGame.location = club.id;
-          curGame.money = Number(curGame.money || 0) - item.cost;
-          curGame.stats = curGame.stats || {};
-          curGame.stats.actionsDone = curGame.stats.actionsDone || {};
-          curGame.stats.actionsDone[item.id] = Number(curGame.stats.actionsDone[item.id] || 0) + 1;
+        // Only deduct in PUT /api/save for non-bigMoment items (bigMoment is already deducted by /api/venue)
+        if (!item.isBigMoment) {
+          let saved = false;
+          let saveData = latest.data;
+          for (let attempt = 0; attempt < 4 && !worker.cancelled; attempt++) {
+            const curGame = saveData.game;
+            curGame.location = club.id;
+            curGame.money = Number(curGame.money || 0) - item.cost;
+            curGame.stats = curGame.stats || {};
+            curGame.stats.actionsDone = curGame.stats.actionsDone || {};
+            curGame.stats.actionsDone[item.id] = Number(curGame.stats.actionsDone[item.id] || 0) + 1;
 
-          const owner = curGame.owner || req.sess.user?.username;
-          const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
-            method: "PUT",
-            body: JSON.stringify({
-              game: { ...curGame, owner, outbox: curGame.outbox || { notices: [], fx: [] } },
-              owner,
-              base: saveData.updatedAt
-            })
-          });
-          if (saveOut.ok) {
-            saved = true;
+            const owner = curGame.owner || req.sess.user?.username;
+            const saveOut = await fetchLagosLife(req.sess.cookie, "/api/save", {
+              method: "PUT",
+              body: JSON.stringify({
+                game: { ...curGame, owner, outbox: curGame.outbox || { notices: [], fx: [] } },
+                owner,
+                base: saveData.updatedAt
+              })
+            });
+            if (saveOut.ok) {
+              saved = true;
+              break;
+            }
+            if (saveOut.status === 409) {
+              await sleepCancelable(2000, worker);
+              const refreshed = await fetchLagosLife(req.sess.cookie, "/api/save");
+              if (refreshed.ok && refreshed.data?.game) {
+                saveData = refreshed.data;
+                continue;
+              }
+            }
+            job.logs.push(`Save error (${saveOut.status}): ${saveOut.data?.error || "retrying..."}`);
             break;
           }
-          if (saveOut.status === 409) {
-            await sleepCancelable(500, worker);
-            const refreshed = await fetchLagosLife(req.sess.cookie, "/api/save");
-            if (refreshed.ok && refreshed.data?.game) {
-              saveData = refreshed.data;
-              continue;
-            }
+          if (!saved) {
+            await sleepCancelable(2500, worker);
+            continue;
           }
-          job.logs.push(`Save error (${saveOut.status}): ${saveOut.data?.error || "retrying..."}`);
-          break;
-        }
-        if (!saved) {
-          await sleepCancelable(2000, worker);
-          continue;
         }
 
         // Broadcast live room event if applicable
@@ -591,7 +611,7 @@ app.post("/api/spend/start", requireAuth, async (req, res) => {
         }
         if (job.logs.length > 40) job.logs = job.logs.slice(-40);
 
-        await sleep(delayMs);
+        await sleepCancelable(delayMs, worker);
       }
 
       if (worker.cancelled) {
